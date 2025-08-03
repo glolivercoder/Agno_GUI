@@ -95,14 +95,15 @@ def exemplo_openrouter():
     """Exemplo usando OpenRouter"""
     print("\n🌐 Testando OpenRouter...")
     
-    if not os.getenv("OPENROUTER_API_KEY"):
-        print("⚠️ OPENROUTER_API_KEY não configurada")
+    if not os.getenv("OPENAI_API_KEY"):
+        print("⚠️ OPENAI_API_KEY não configurada para OpenRouter")
+        print("💡 Configure no arquivo .env: OPENAI_API_KEY=sk-or-v1-sua_chave_openrouter")
         return
     
     # Exemplo com modelo gratuito
     agent_free = Agent(
         name="Assistente OpenRouter Gratuito",
-        model=OpenRouter(id="meta-llama/llama-3.1-8b-instruct:free"),
+        model=OpenRouter(id="mistralai/mistral-7b-instruct:free"),
         instructions=[
             "Você é um assistente usando modelo gratuito via OpenRouter.",
             "Seja útil e eficiente."

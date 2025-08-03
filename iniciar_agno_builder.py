@@ -7,9 +7,33 @@ Versão simplificada e robusta para evitar problemas de contexto
 import streamlit as st
 import sys
 import os
+from pathlib import Path
 
 # Adicionar o diretório atual ao path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Carregar variáveis de ambiente do arquivo .env
+def load_env_file():
+    """Carrega variáveis do arquivo .env se existir"""
+    env_path = Path(".env")
+    if env_path.exists():
+        try:
+            with open(env_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip().strip('"').strip("'")
+                        if value and not value.startswith('xxx'):
+                            os.environ[key] = value
+            return True
+        except Exception as e:
+            st.warning(f"⚠️ Erro ao carregar .env: {e}")
+    return False
+
+# Carregar .env no início
+load_env_file()
 
 def main():
     """Função principal simplificada"""

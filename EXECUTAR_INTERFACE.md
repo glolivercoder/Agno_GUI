@@ -8,17 +8,31 @@ O erro `missing ScriptRunContext` ocorre quando o Streamlit é inicializado fora
 
 Criei um script de inicialização separado que resolve o problema:
 
-### **Método 1: Usar o Script de Inicialização (Recomendado)**
+### **Método 1: Script Completo (Recomendado)**
 
 ```bash
-# Execute este comando:
+# Script que verifica tudo e inicia automaticamente:
+python start_agno_builder.py
+```
+
+### **Método 2: Interface Simples**
+
+```bash
+# Interface simplificada com aba Settings:
+streamlit run agno_builder_simples.py
+```
+
+### **Método 3: Script de Inicialização**
+
+```bash
+# Script de inicialização original:
 streamlit run iniciar_agno_builder.py
 ```
 
-### **Método 2: Executar Diretamente (Alternativo)**
+### **Método 4: Interface Completa**
 
 ```bash
-# Se ainda quiser usar o arquivo original:
+# Interface completa (pode ter problemas de contexto):
 streamlit run agno_builder_interface.py
 ```
 
