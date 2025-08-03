@@ -1,0 +1,274 @@
+{
+  "agno_framework_summary": {
+    "overview": {
+      "name": "Agno",
+      "description": "Framework Python full-stack para construção de Sistemas Multi-Agentes com memória, conhecimento e raciocínio",
+      "version": "1.7.7",
+      "website": "https://docs.agno.com",
+      "github": "https://github.com/agno-agi/agno"
+    },
+    "core_concepts": {
+      "agents": {
+        "description": "Programas de IA que operam autonomamente",
+        "features": [
+          "Instantiação rápida (~3μs)",
+          "Baixo uso de memória (~6.5Kib)",
+          "Suporte nativo multimodal (texto, imagem, áudio, vídeo)",
+          "Saídas estruturadas",
+          "Raciocínio como cidadão de primeira classe"
+        ]
+      },
+      "teams": {
+        "description": "Sistemas multi-agentes com arquitetura avançada",
+        "modes": [
+          "collaborate - agentes colaboram em tarefas",
+          "coordinate - coordenação entre agentes",
+          "route - roteamento inteligente de tarefas"
+        ]
+      },
+      "workflows": {
+        "description": "Fluxos de trabalho agênticos com estado e determinismo",
+        "types": [
+          "Sequencial",
+          "Paralelo", 
+          "Condicional",
+          "Loop",
+          "Roteamento inteligente"
+        ]
+      }
+    },
+    "five_levels_of_agentic_systems": {
+      "level_1": "Agentes com ferramentas e instruções",
+      "level_2": "Agentes com conhecimento e armazenamento",
+      "level_3": "Agentes com memória e raciocínio",
+      "level_4": "Times de agentes que podem raciocinar e colaborar",
+      "level_5": "Fluxos de trabalho agênticos com estado e determinismo"
+    },
+    "key_features": {
+      "model_agnostic": "Interface unificada para 23+ provedores de modelos",
+      "performance": {
+        "instantiation": "~3μs em média",
+        "memory_footprint": "~6.5Kib em média"
+      },
+      "reasoning": {
+        "approaches": [
+          "Modelos de raciocínio",
+          "ReasoningTools",
+          "Abordagem chain-of-thought personalizada"
+        ]
+      },
+      "multimodal": "Suporte nativo para entrada e saída multimodal",
+      "agentic_search": "Busca agêntica integrada com 20+ bancos de dados vetoriais",
+      "memory_storage": "Drivers integrados de Storage & Memory para memória de longo prazo",
+      "fastapi_routes": "Rotas FastAPI pré-construídas para produção rápida",
+      "monitoring": "Monitoramento em tempo real em agno.com"
+    },
+    "supported_models": {
+      "providers": [
+        "OpenAI",
+        "Anthropic",
+        "Google Gemini",
+        "AWS Bedrock",
+        "Azure OpenAI",
+        "Groq",
+        "Ollama",
+        "Cohere",
+        "Mistral",
+        "xAI",
+        "DeepSeek",
+        "Meta",
+        "IBM WatsonX",
+        "Cerebras",
+        "Fireworks",
+        "Together",
+        "Perplexity",
+        "HuggingFace",
+        "LiteLLM",
+        "vLLM"
+      ]
+    },
+    "tools_and_integrations": {
+      "search": [
+        "DuckDuckGo",
+        "Google Search",
+        "Brave Search",
+        "Exa",
+        "Tavily",
+        "ArXiv",
+        "Wikipedia",
+        "Hacker News"
+      ],
+      "web_scraping": [
+        "Firecrawl",
+        "Crawl4AI",
+        "Newspaper4k",
+        "AgentQL",
+        "Browserbase",
+        "Spider"
+      ],
+      "databases": [
+        "PostgreSQL",
+        "MongoDB",
+        "SQLite",
+        "DuckDB",
+        "MySQL",
+        "Redis"
+      ],
+      "vector_databases": [
+        "PgVector",
+        "ChromaDB",
+        "LanceDB",
+        "Qdrant",
+        "Pinecone",
+        "Weaviate",
+        "Milvus",
+        "Couchbase"
+      ],
+      "social": [
+        "Email",
+        "Slack",
+        "Discord",
+        "WhatsApp",
+        "Telegram",
+        "X (Twitter)"
+      ],
+      "development": [
+        "GitHub",
+        "Docker",
+        "Python",
+        "Shell",
+        "File operations",
+        "Calculator"
+      ],
+      "multimodal": [
+        "DALL-E",
+        "ElevenLabs",
+        "Cartesia",
+        "Replicate",
+        "Fal",
+        "ModelsLabs"
+      ]
+    },
+    "knowledge_management": {
+      "supported_formats": [
+        "PDF",
+        "Text",
+        "Markdown",
+        "CSV",
+        "JSON",
+        "DOCX",
+        "Websites",
+        "YouTube transcripts",
+        "ArXiv papers"
+      ],
+      "features": [
+        "RAG agêntico",
+        "Busca híbrida (palavra-chave + vetorial)",
+        "Filtragem de conhecimento",
+        "Chunking inteligente",
+        "Recuperadores personalizados"
+      ]
+    },
+    "memory_system": {
+      "types": [
+        "Memória de sessão",
+        "Memória de longo prazo",
+        "Memória compartilhada entre agentes",
+        "Resumos de sessão"
+      ],
+      "storage_options": [
+        "SQLite",
+        "PostgreSQL",
+        "MongoDB",
+        "Redis",
+        "Mem0",
+        "Zep"
+      ]
+    },
+    "observability": {
+      "platforms": [
+        "Agno Platform (agno.com)",
+        "LangSmith",
+        "Langfuse",
+        "Arize Phoenix",
+        "Weave",
+        "LangWatch",
+        "AgentOps"
+      ],
+      "features": [
+        "Rastreamento em tempo real",
+        "Métricas de performance",
+        "Debugging de agentes",
+        "Análise de custos"
+      ]
+    },
+    "installation": {
+      "basic": "pip install -U agno",
+      "with_models": [
+        "agno[openai]",
+        "agno[anthropic]",
+        "agno[tools]",
+        "agno[models]"
+      ],
+      "development": "agno[dev]"
+    },
+    "use_cases": {
+      "examples": [
+        "Agentes de pesquisa",
+        "Assistentes financeiros",
+        "Sistemas de RAG",
+        "Automação de tarefas",
+        "Análise de documentos",
+        "Geração de conteúdo",
+        "Chatbots inteligentes",
+        "Sistemas de suporte",
+        "Análise de dados",
+        "Processamento multimodal"
+      ]
+    },
+    "architecture": {
+      "components": [
+        "Agent - Unidade atômica de trabalho",
+        "Team - Múltiplos agentes trabalhando juntos",
+        "Workflow - Fluxos de trabalho estruturados",
+        "Knowledge - Base de conhecimento para RAG",
+        "Memory - Sistema de memória persistente",
+        "Storage - Armazenamento de sessões e estado",
+        "Tools - Ferramentas para interação externa"
+      ]
+    },
+    "development_workflow": {
+      "steps": [
+        "1. Criar agente básico com modelo",
+        "2. Adicionar ferramentas necessárias",
+        "3. Configurar conhecimento (se necessário)",
+        "4. Implementar memória (se necessário)",
+        "5. Testar e iterar",
+        "6. Monitorar em produção"
+      ]
+    },
+    "best_practices": {
+      "performance": [
+        "Usar agentes com escopo estreito",
+        "Limitar número de ferramentas por agente",
+        "Implementar cache de resultados",
+        "Usar processamento paralelo quando possível"
+      ],
+      "reliability": [
+        "Implementar tratamento de erros",
+        "Usar confirmação humana para ações críticas",
+        "Monitorar métricas de performance",
+        "Testar cenários diversos"
+      ]
+    },
+    "community": {
+      "resources": [
+        "Documentação: https://docs.agno.com",
+        "Discord: https://discord.gg/4MtYHHrgA8",
+        "Fórum: https://community.agno.com",
+        "GitHub: https://github.com/agno-agi/agno",
+        "Exemplos: https://docs.agno.com/examples"
+      ]
+    }
+  }
+}

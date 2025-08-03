@@ -1,0 +1,27 @@
+
+# Base de Conhecimento - Agno Framework
+
+## O que é o Agno?
+O Agno é um framework Python para construção de sistemas multi-agentes com memória, conhecimento e raciocínio.
+
+## Características Principais:
+- Suporte a 23+ provedores de modelos
+- Instantiação rápida (~3μs)
+- Baixo uso de memória (~6.5Kib)
+- Suporte multimodal nativo
+- RAG agêntico integrado
+- Sistema de memória persistente
+
+## Níveis de Sistemas Agênticos:
+1. Agentes com ferramentas e instruções
+2. Agentes com conhecimento e armazenamento
+3. Agentes com memória e raciocínio
+4. Times de agentes que colaboram
+5. Fluxos de trabalho agênticos com estado
+
+## Casos de Uso:
+- Assistentes de pesquisa
+- Análise de documentos
+- Automação de tarefas
+- Chatbots inteligentes
+- Sistemas de suporte
