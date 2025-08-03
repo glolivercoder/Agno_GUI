@@ -16,6 +16,8 @@ try:
     from agno.agent import Agent
     from agno.models.openai import OpenAIChat
     from agno.models.anthropic import Claude
+    from agno.models.openrouter import OpenRouter
+    from agno.models.google import Gemini
     from agno.playground import Playground
     from agno.tools.duckduckgo import DuckDuckGoTools
     from agno.tools.calculator import CalculatorTools
@@ -36,22 +38,6 @@ class AgnoAgentBuilder:
     def __init__(self):
         self.config = {}
         self.generated_code = ""
-        
-        # Configurar página do Streamlit
-        st.set_page_config(
-            page_title="Agno Agent Builder",
-            page_icon="🤖",
-            layout="wide",
-            initial_sidebar_state="expanded"
-        )
-        
-        # Inicializar estado da sessão
-        if 'current_level' not in st.session_state:
-            st.session_state.current_level = 1
-        if 'agent_configs' not in st.session_state:
-            st.session_state.agent_configs = {}
-        if 'ai_assistant' not in st.session_state and AGNO_AVAILABLE:
-            st.session_state.ai_assistant = self.create_ai_assistant()
     
     def create_ai_assistant(self):
         """Cria assistente IA especializado em Agno"""
@@ -68,10 +54,47 @@ class AgnoAgentBuilder:
                 "Sugira ferramentas, configurações e melhores práticas.",
                 "Explique conceitos técnicos de forma clara.",
                 "Sempre considere performance e escalabilidade.",
-                "Forneça exemplos práticos e funcionais."
+                "Forneça exemplos práticos e funcionais.",
+                "Conheça todos os provedores: OpenAI, Anthropic, Google Gemini, OpenRouter.",
+                "Para OpenRouter, sugira modelos gratuitos quando apropriado."
             ],
             markdown=True
         )
+    
+    def get_openrouter_models(self):
+        """Obtém lista de modelos OpenRouter populares"""
+        return {
+            "Populares": [
+                {"id": "openai/gpt-4o", "name": "GPT-4o (OpenAI)", "free": False},
+                {"id": "anthropic/claude-3-5-sonnet", "name": "Claude 3.5 Sonnet", "free": False},
+                {"id": "google/gemini-2.0-flash-exp", "name": "Gemini 2.0 Flash", "free": False},
+                {"id": "meta-llama/llama-3.1-8b-instruct:free", "name": "Llama 3.1 8B", "free": True},
+                {"id": "mistralai/mistral-7b-instruct:free", "name": "Mistral 7B", "free": True}
+            ],
+            "Gratuitos": [
+                {"id": "meta-llama/llama-3.1-8b-instruct:free", "name": "Llama 3.1 8B Instruct", "free": True},
+                {"id": "mistralai/mistral-7b-instruct:free", "name": "Mistral 7B Instruct", "free": True},
+                {"id": "huggingface/zephyr-7b-beta:free", "name": "Zephyr 7B Beta", "free": True},
+                {"id": "openchat/openchat-7b:free", "name": "OpenChat 7B", "free": True},
+                {"id": "gryphe/mythomist-7b:free", "name": "MythoMist 7B", "free": True}
+            ],
+            "OpenAI": [
+                {"id": "openai/gpt-4o", "name": "GPT-4o", "free": False},
+                {"id": "openai/gpt-4-turbo", "name": "GPT-4 Turbo", "free": False},
+                {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini", "free": False},
+                {"id": "openai/gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "free": False}
+            ],
+            "Anthropic": [
+                {"id": "anthropic/claude-3-5-sonnet", "name": "Claude 3.5 Sonnet", "free": False},
+                {"id": "anthropic/claude-3-opus", "name": "Claude 3 Opus", "free": False},
+                {"id": "anthropic/claude-3-haiku", "name": "Claude 3 Haiku", "free": False}
+            ],
+            "Google": [
+                {"id": "google/gemini-2.0-flash-exp", "name": "Gemini 2.0 Flash Experimental", "free": False},
+                {"id": "google/gemini-pro", "name": "Gemini Pro", "free": False},
+                {"id": "google/gemini-flash-1.5", "name": "Gemini Flash 1.5", "free": False}
+            ]
+        }
     
     def render_sidebar(self):
         """Renderiza barra lateral com navegação"""
@@ -109,6 +132,37 @@ class AgnoAgentBuilder:
         }
         
         st.sidebar.info(level_info[selected_level])
+        
+        # Informações sobre provedores
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### 🤖 Provedores Suportados")
+        
+        providers_info = {
+            "OpenAI": {"icon": "🔵", "models": "GPT-4, GPT-3.5", "cost": "Pago"},
+            "Anthropic": {"icon": "🟠", "models": "Claude 3.5", "cost": "Pago"},
+            "Google Gemini": {"icon": "🔴", "models": "Gemini 2.0", "cost": "Pago"},
+            "OpenRouter": {"icon": "🌐", "models": "100+ modelos", "cost": "Varia"},
+        }
+        
+        for provider, info in providers_info.items():
+            st.sidebar.markdown(f"""
+            **{info['icon']} {provider}**
+            - Modelos: {info['models']}
+            - Custo: {info['cost']}
+            """)
+        
+        if st.sidebar.button("🔗 Links Úteis"):
+            st.sidebar.markdown("""
+            **Obter Chaves de API:**
+            - [OpenAI](https://platform.openai.com/api-keys)
+            - [Anthropic](https://console.anthropic.com/)
+            - [Google AI](https://makersuite.google.com/app/apikey)
+            - [OpenRouter](https://openrouter.ai/keys)
+            
+            **Documentação:**
+            - [Agno Docs](https://docs.agno.com)
+            - [OpenRouter Models](https://openrouter.ai/models)
+            """)
         
         # Ações rápidas
         st.sidebar.markdown("---")
@@ -173,7 +227,7 @@ class AgnoAgentBuilder:
             with col_model1:
                 model_provider = st.selectbox(
                     "Provedor do Modelo:",
-                    ["OpenAI", "Anthropic", "Google", "Groq", "Ollama"],
+                    ["OpenAI", "Anthropic", "Google Gemini", "OpenRouter", "Groq", "Ollama"],
                     help="Escolha o provedor de IA"
                 )
             
@@ -181,13 +235,61 @@ class AgnoAgentBuilder:
                 if model_provider == "OpenAI":
                     model_id = st.selectbox(
                         "Modelo:",
-                        ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-4o"]
+                        ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"]
                     )
                 elif model_provider == "Anthropic":
                     model_id = st.selectbox(
                         "Modelo:",
-                        ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku"]
+                        ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku", "claude-3-5-sonnet"]
                     )
+                elif model_provider == "Google Gemini":
+                    model_id = st.selectbox(
+                        "Modelo:",
+                        ["gemini-2.0-flash-001", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"]
+                    )
+                elif model_provider == "OpenRouter":
+                    # Seção especial para OpenRouter com modelos populares
+                    openrouter_category = st.selectbox(
+                        "Categoria:",
+                        ["Populares", "Gratuitos", "OpenAI", "Anthropic", "Google", "Personalizado"]
+                    )
+                    
+                    if openrouter_category in st.session_state.openrouter_models:
+                        models = st.session_state.openrouter_models[openrouter_category]
+                        
+                        # Criar opções com indicação de gratuito
+                        model_options = []
+                        model_ids = []
+                        
+                        for model in models:
+                            label = f"{model['name']}"
+                            if model['free']:
+                                label += " 🆓"
+                            model_options.append(label)
+                            model_ids.append(model['id'])
+                        
+                        selected_index = st.selectbox(
+                            "Modelo:",
+                            range(len(model_options)),
+                            format_func=lambda x: model_options[x]
+                        )
+                        
+                        model_id = model_ids[selected_index]
+                        
+                        # Mostrar informações do modelo selecionado
+                        selected_model = models[selected_index]
+                        if selected_model['free']:
+                            st.success("✅ Modelo gratuito selecionado!")
+                        else:
+                            st.warning("💰 Modelo pago - verifique custos em openrouter.ai")
+                    
+                    else:  # Personalizado
+                        model_id = st.text_input(
+                            "ID do Modelo OpenRouter:",
+                            "openai/gpt-4o",
+                            help="Digite o ID completo do modelo (ex: openai/gpt-4o)"
+                        )
+                        st.info("💡 Encontre mais modelos em: https://openrouter.ai/models")
                 else:
                     model_id = st.text_input("ID do Modelo:", "modelo-padrao")
             
@@ -199,11 +301,38 @@ class AgnoAgentBuilder:
                 help="Defina como o agente deve se comportar"
             )
             
+            # Configurações de API
+            with st.expander("�  Configurações de API"):
+                st.markdown("**Chaves de API necessárias:**")
+                
+                if model_provider == "OpenAI":
+                    st.code("export OPENAI_API_KEY=sua_chave_openai")
+                elif model_provider == "Anthropic":
+                    st.code("export ANTHROPIC_API_KEY=sua_chave_anthropic")
+                elif model_provider == "Google Gemini":
+                    st.code("export GOOGLE_API_KEY=sua_chave_google")
+                    st.info("💡 Para Vertex AI: export GOOGLE_GENAI_USE_VERTEXAI=true")
+                elif model_provider == "OpenRouter":
+                    st.code("export OPENROUTER_API_KEY=sua_chave_openrouter")
+                    st.info("💡 Obtenha sua chave em: https://openrouter.ai/keys")
+                    
+                    # Mostrar preços estimados para OpenRouter
+                    if "free" not in model_id.lower():
+                        st.warning("⚠️ Este modelo tem custo. Verifique preços em: https://openrouter.ai/models")
+                    else:
+                        st.success("✅ Modelo gratuito selecionado!")
+            
             # Configurações avançadas
             with st.expander("🔧 Configurações Avançadas"):
                 show_tool_calls = st.checkbox("Mostrar chamadas de ferramentas", value=True)
                 markdown_output = st.checkbox("Saída em Markdown", value=True)
                 stream_response = st.checkbox("Resposta em streaming", value=True)
+                
+                # Configurações específicas do OpenRouter
+                if model_provider == "OpenRouter":
+                    st.markdown("**Configurações OpenRouter:**")
+                    site_url = st.text_input("Site URL:", "http://localhost:8501")
+                    site_name = st.text_input("Nome do Site:", "Agno Builder")
         
         with col2:
             st.subheader("🛠️ Ferramentas Disponíveis")
@@ -870,6 +999,12 @@ class AgnoAgentBuilder:
         elif config['model_provider'] == "Anthropic":
             imports.append("from agno.models.anthropic import Claude")
             model_class = "Claude"
+        elif config['model_provider'] == "Google Gemini":
+            imports.append("from agno.models.google import Gemini")
+            model_class = "Gemini"
+        elif config['model_provider'] == "OpenRouter":
+            imports.append("from agno.models.openrouter import OpenRouter")
+            model_class = "OpenRouter"
         else:
             imports.append(f"from agno.models.{config['model_provider'].lower()} import {config['model_provider']}")
             model_class = config['model_provider']
@@ -881,8 +1016,35 @@ class AgnoAgentBuilder:
         # Gerar código
         code = "\n".join(imports) + "\n\n"
         
+        # Adicionar comentários sobre configuração de API
+        if config['model_provider'] == "OpenRouter":
+            code += """# Configuração OpenRouter
+# Certifique-se de ter configurado: export OPENROUTER_API_KEY=sua_chave
+# Obtenha sua chave em: https://openrouter.ai/keys
+
+"""
+        elif config['model_provider'] == "Google Gemini":
+            code += """# Configuração Google Gemini
+# Certifique-se de ter configurado: export GOOGLE_API_KEY=sua_chave
+# Para Vertex AI: export GOOGLE_GENAI_USE_VERTEXAI=true
+
+"""
+        elif config['model_provider'] == "Anthropic":
+            code += """# Configuração Anthropic
+# Certifique-se de ter configurado: export ANTHROPIC_API_KEY=sua_chave
+
+"""
+        elif config['model_provider'] == "OpenAI":
+            code += """# Configuração OpenAI
+# Certifique-se de ter configurado: export OPENAI_API_KEY=sua_chave
+
+"""
+        
+        # Criar nome da variável
+        agent_var_name = config['name'].lower().replace(' ', '_')
+        
         code += f"""# Criar {config['name']}
-{config['name'].lower().replace(' ', '_')} = Agent(
+{agent_var_name} = Agent(
     name="{config['name']}",
     role="{config['role']}",
     model={model_class}(id="{config['model_id']}"),"""
@@ -896,16 +1058,18 @@ class AgnoAgentBuilder:
                     code += f"        {tool['class']}(),\n"
             code += "    ],"
         
+        instructions_formatted = config['instructions'].replace('\n', '",\n        "')
+        
         code += f"""
     instructions=[
-        "{config['instructions'].replace(chr(10), '",\n        "')}"
+        "{instructions_formatted}"
     ],
     show_tool_calls={config['show_tool_calls']},
     markdown={config['markdown']},
 )
 
 # Testar o agente
-{config['name'].lower().replace(' ', '_')}.print_response(
+{agent_var_name}.print_response(
     "Olá! Como você pode me ajudar?",
     stream={config['stream']}
 )
@@ -917,6 +1081,9 @@ class AgnoAgentBuilder:
         """Gera código Python para agente Nível 2 (RAG)"""
         code = """from agno.agent import Agent
 from agno.models.openai import OpenAIChat
+from agno.models.anthropic import Claude
+from agno.models.google import Gemini
+from agno.models.openrouter import OpenRouter
 from agno.knowledge.text import TextKnowledgeBase
 from agno.vectordb.chroma import ChromaDb
 
@@ -937,8 +1104,14 @@ from agno.vectordb.chroma import ChromaDb
         code += f"""
 
 # Criar agente com conhecimento
+# Escolha o modelo desejado descomentando uma das linhas abaixo:
+# model = OpenAIChat(id="gpt-4")  # OpenAI
+# model = Claude(id="claude-3-5-sonnet")  # Anthropic
+# model = Gemini(id="gemini-2.0-flash-001")  # Google
+# model = OpenRouter(id="openai/gpt-4o")  # OpenRouter
+
 agente_rag = Agent(
-    model=OpenAIChat(id="gpt-4"),
+    model=OpenAIChat(id="gpt-4"),  # Altere conforme necessário
     knowledge=knowledge_base,
     instructions=[
         "Use a base de conhecimento para responder perguntas.",
@@ -1043,8 +1216,10 @@ from agno.tools.yfinance import YFinanceTools
                 tools_list = [tools_map.get(tool, f"{tool}Tools()") for tool in agent_config['tools']]
                 tools_code = f"    tools=[{', '.join(tools_list)}],"
             
+            agent_var_name = agent_config['name'].lower().replace(' ', '_')
+            
             code += f"""# {agent_config['name']}
-{agent_config['name'].lower().replace(' ', '_')} = Agent(
+{agent_var_name} = Agent(
     name="{agent_config['name']}",
     role="{agent_config['role']}",
     model=OpenAIChat(id="{agent_config['model']}"),
@@ -1060,9 +1235,10 @@ from agno.tools.yfinance import YFinanceTools
         
         # Gerar código do time
         agent_names = [agent['name'].lower().replace(' ', '_') for agent in config['agents']]
+        team_var_name = config['team_name'].lower().replace(' ', '_')
         
         code += f"""# Criar time
-{config['team_name'].lower().replace(' ', '_')} = Team(
+{team_var_name} = Team(
     name="{config['team_name']}",
     members=[{', '.join(agent_names)}],
     model=OpenAIChat(id="gpt-4"),
@@ -1079,7 +1255,7 @@ from agno.tools.yfinance import YFinanceTools
 )
 
 # Testar o time
-{config['team_name'].lower().replace(' ', '_')}.print_response(
+{team_var_name}.print_response(
     "Trabalhem juntos para resolver este problema complexo: "
     "Analisem o mercado de tecnologia e criem um relatório completo.",
     stream=True
@@ -1143,9 +1319,10 @@ tarefa_{i+1} = Task(
         
         # Gerar workflow
         task_names = [f"tarefa_{i+1}" for i in range(len(config['steps']))]
+        workflow_var_name = config['workflow_name'].lower().replace(' ', '_')
         
         code += f"""# Criar workflow
-{config['workflow_name'].lower().replace(' ', '_')} = Workflow(
+{workflow_var_name} = Workflow(
     name="{config['workflow_name']}",
     description="{config['workflow_description']}",
     tasks=[{', '.join(task_names)}],
@@ -1153,7 +1330,7 @@ tarefa_{i+1} = Task(
 )
 
 # Executar workflow
-resultado = {config['workflow_name'].lower().replace(' ', '_')}.run(
+resultado = {workflow_var_name}.run(
     input_data={{"topico": "Análise de mercado de IA"}}
 )
 
@@ -1163,8 +1340,35 @@ print(resultado.content)
         
         return code
     
+    def initialize_streamlit(self):
+        """Inicializa configurações do Streamlit"""
+        try:
+            # Configurar página do Streamlit
+            st.set_page_config(
+                page_title="Agno Agent Builder",
+                page_icon="🤖",
+                layout="wide",
+                initial_sidebar_state="expanded"
+            )
+        except:
+            # Página já foi configurada
+            pass
+        
+        # Inicializar estado da sessão
+        if 'current_level' not in st.session_state:
+            st.session_state.current_level = 1
+        if 'agent_configs' not in st.session_state:
+            st.session_state.agent_configs = {}
+        if 'ai_assistant' not in st.session_state and AGNO_AVAILABLE:
+            st.session_state.ai_assistant = self.create_ai_assistant()
+        if 'openrouter_models' not in st.session_state:
+            st.session_state.openrouter_models = self.get_openrouter_models()
+    
     def run(self):
         """Executa a aplicação principal"""
+        # Inicializar Streamlit
+        self.initialize_streamlit()
+        
         # Renderizar barra lateral
         current_level = self.render_sidebar()
         

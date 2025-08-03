@@ -46,16 +46,27 @@ Criei uma **interface gráfica completa** que preenche essa lacuna, oferecendo:
 - Exportação de código Python funcional
 - Salvamento/carregamento de configurações
 
+#### **5. Suporte Multi-Provedor**
+- **OpenAI**: GPT-4, GPT-3.5, GPT-4o (modelos premium)
+- **Anthropic**: Claude 3.5 Sonnet, Opus, Haiku (alta qualidade)
+- **Google Gemini**: Gemini 2.0 Flash, Pro (multimodal avançado)
+- **OpenRouter**: 100+ modelos incluindo opções gratuitas (máxima variedade)
+
 ## 🛠️ Instalação e Uso
 
 ### **Pré-requisitos**
 ```bash
-# Instalar dependências
-pip install streamlit agno openai anthropic
+# Instalar dependências básicas
+pip install streamlit agno
 
-# Configurar chaves de API
+# Instalar provedores específicos (escolha os que usar)
+pip install openai anthropic google-generativeai
+
+# Configurar chaves de API (configure apenas as que usar)
 export OPENAI_API_KEY="sua_chave_openai"
 export ANTHROPIC_API_KEY="sua_chave_anthropic"
+export GOOGLE_API_KEY="sua_chave_google"
+export OPENROUTER_API_KEY="sua_chave_openrouter"
 ```
 
 ### **Executar a Interface**
