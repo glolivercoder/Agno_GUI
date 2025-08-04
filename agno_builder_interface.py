@@ -10,6 +10,7 @@ import yaml
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import os
+import sys
 
 # Configurar protobuf antes dos imports
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
@@ -29,11 +30,30 @@ try:
             from agno.models.openrouter import OpenRouter
             from agno.models.google import Gemini
             from agno.playground import Playground
-            from agno.tools.duckduckgo import DuckDuckGoTools
-            from agno.tools.calculator import CalculatorTools
-            from agno.tools.yfinance import YFinanceTools
             from agno.team import Team
             from agno.workflow import Workflow
+            
+            # Imports opcionais de ferramentas
+            AVAILABLE_TOOLS = {}
+            
+            try:
+                from agno.tools.duckduckgo import DuckDuckGoTools
+                AVAILABLE_TOOLS['duckduckgo'] = DuckDuckGoTools
+            except ImportError:
+                pass
+            
+            try:
+                from agno.tools.calculator import CalculatorTools
+                AVAILABLE_TOOLS['calculator'] = CalculatorTools
+            except ImportError:
+                pass
+            
+            try:
+                from agno.tools.yfinance import YFinanceTools
+                AVAILABLE_TOOLS['yfinance'] = YFinanceTools
+            except ImportError:
+                pass
+            
             AGNO_AVAILABLE = True
         except ImportError as e:
             AGNO_AVAILABLE = False
@@ -67,7 +87,7 @@ class AgnoAgentBuilder:
         return Agent(
             name="Agno Builder Assistant",
             model=OpenAIChat(id="gpt-4"),
-            tools=[DuckDuckGoTools(), CalculatorTools()],
+            tools=[tool() for tool in [AVAILABLE_TOOLS.get('duckduckgo'), AVAILABLE_TOOLS.get('calculator')] if tool],
             instructions=[
                 "Você é um especialista em Agno Framework.",
                 "Ajude usuários a criar agentes otimizados para cada nível.",
@@ -269,7 +289,18 @@ class AgnoAgentBuilder:
                     )
                 elif model_provider == "OpenRouter":
                     # Nova interface avançada para OpenRouter
-                    from openrouter_filters import OpenRouterFilters
+                    try:
+                        from openrouter_filters import OpenRouterFilters
+                    except ImportError as e:
+                        st.error(f"❌ Erro ao importar OpenRouterFilters: {e}")
+                        st.info("💡 Certifique-se de que o arquivo openrouter_filters.py está no diretório correto")
+                        # Fallback para entrada manual
+                        model_id = st.text_input(
+                            "ID do Modelo OpenRouter:",
+                            "mistralai/mistral-7b-instruct:free",
+                            help="Digite o ID completo do modelo"
+                        )
+
                     
                     # Inicializar componente de filtros
                     if 'openrouter_filters' not in st.session_state:
@@ -338,42 +369,27 @@ class AgnoAgentBuilder:
         with col2:
             st.subheader("🛠️ Ferramentas Disponíveis")
             
-            # Categorias de ferramentas
+            # Ferramentas disponíveis (apenas as que foram importadas com sucesso)
+            available_tools = self.get_available_tools()
+            
             tools_categories = {
-                "🔍 Busca": {
-                    "DuckDuckGo": {"class": "DuckDuckGoTools", "import": "agno.tools.duckduckgo"},
-                    "Google Search": {"class": "GoogleSearchTools", "import": "agno.tools.googlesearch"},
-                    "Exa": {"class": "ExaTools", "import": "agno.tools.exa"},
-                    "Tavily": {"class": "TavilyTools", "import": "agno.tools.tavily"}
-                },
-                "🧮 Cálculos": {
-                    "Calculator": {"class": "CalculatorTools", "import": "agno.tools.calculator"},
-                    "Pandas": {"class": "PandasTools", "import": "agno.tools.pandas"},
-                    "NumPy": {"class": "NumpyTools", "import": "agno.tools.numpy"}
-                },
-                "🌐 Web": {
-                    "Firecrawl": {"class": "FirecrawlTools", "import": "agno.tools.firecrawl"},
-                    "Newspaper4k": {"class": "Newspaper4kTools", "import": "agno.tools.newspaper4k"},
-                    "BeautifulSoup": {"class": "WebTools", "import": "agno.tools.web"}
-                },
-                "💰 Financeiro": {
-                    "YFinance": {"class": "YFinanceTools", "import": "agno.tools.yfinance"},
-                    "OpenBB": {"class": "OpenBBTools", "import": "agno.tools.openbb"},
-                    "Alpha Vantage": {"class": "AlphaVantageTools", "import": "agno.tools.alphavantage"}
-                },
-                "💬 Social": {
-                    "Email": {"class": "EmailTools", "import": "agno.tools.email"},
-                    "Slack": {"class": "SlackTools", "import": "agno.tools.slack"},
-                    "Discord": {"class": "DiscordTools", "import": "agno.tools.discord"},
-                    "WhatsApp": {"class": "WhatsAppTools", "import": "agno.tools.whatsapp"}
-                },
-                "⚙️ Desenvolvimento": {
-                    "GitHub": {"class": "GitHubTools", "import": "agno.tools.github"},
-                    "Docker": {"class": "DockerTools", "import": "agno.tools.docker"},
-                    "Shell": {"class": "ShellTools", "import": "agno.tools.shell"},
-                    "Python": {"class": "PythonTools", "import": "agno.tools.python"}
-                }
+                "🔍 Busca": {},
+                "🧮 Cálculos": {},
+                "💰 Financeiro": {},
             }
+            
+            # Adicionar apenas ferramentas disponíveis
+            if 'duckduckgo' in available_tools:
+                tools_categories["🔍 Busca"]["DuckDuckGo"] = {"class": "DuckDuckGoTools", "import": "agno.tools.duckduckgo"}
+            
+            if 'calculator' in available_tools:
+                tools_categories["🧮 Cálculos"]["Calculator"] = {"class": "CalculatorTools", "import": "agno.tools.calculator"}
+            
+            if 'yfinance' in available_tools:
+                tools_categories["💰 Financeiro"]["YFinance"] = {"class": "YFinanceTools", "import": "agno.tools.yfinance"}
+            
+            # Remover categorias vazias
+            tools_categories = {k: v for k, v in tools_categories.items() if v}
             
             selected_tools = []
             for category, tools in tools_categories.items():
@@ -1366,6 +1382,13 @@ print(resultado.content)
             st.session_state.openrouter_models = self.get_openrouter_models()
         if 'app_logs' not in st.session_state:
             st.session_state.app_logs = []
+    
+    def get_available_tools(self):
+        """Retorna lista de ferramentas disponíveis"""
+        if not AGNO_AVAILABLE:
+            return {}
+        
+        return AVAILABLE_TOOLS
     
     def add_log(self, message: str, level: str = "INFO"):
         """Adiciona uma mensagem ao log da aplicação"""
