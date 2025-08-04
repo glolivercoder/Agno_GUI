@@ -11,23 +11,43 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 import os
 
-# Imports do Agno (assumindo que está instalado)
+# Configurar protobuf antes dos imports
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
+# Imports do Agno
 try:
-    from agno.agent import Agent
-    from agno.models.openai import OpenAIChat
-    from agno.models.anthropic import Claude
-    from agno.models.openrouter import OpenRouter
-    from agno.models.google import Gemini
-    from agno.playground import Playground
-    from agno.tools.duckduckgo import DuckDuckGoTools
-    from agno.tools.calculator import CalculatorTools
-    from agno.tools.yfinance import YFinanceTools
-    from agno.team import Team
-    from agno.workflow import Workflow
-    AGNO_AVAILABLE = True
-except ImportError:
+    import sys
+    import subprocess
+    
+    # Verificar se estamos no ambiente virtual correto
+    if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        # Estamos em um ambiente virtual
+        try:
+            from agno.agent import Agent
+            from agno.models.openai import OpenAIChat
+            from agno.models.anthropic import Claude
+            from agno.models.openrouter import OpenRouter
+            from agno.models.google import Gemini
+            from agno.playground import Playground
+            from agno.tools.duckduckgo import DuckDuckGoTools
+            from agno.tools.calculator import CalculatorTools
+            from agno.tools.yfinance import YFinanceTools
+            from agno.team import Team
+            from agno.workflow import Workflow
+            AGNO_AVAILABLE = True
+        except ImportError as e:
+            AGNO_AVAILABLE = False
+            st.error(f"❌ Erro ao importar Agno: {e}")
+            st.info("💡 Execute no ambiente virtual: .venv\\Scripts\\activate")
+    else:
+        AGNO_AVAILABLE = False
+        st.warning("⚠️ Ambiente virtual não detectado. Ative o ambiente virtual primeiro.")
+        st.code(".venv\\Scripts\\activate  # Windows")
+        st.code("source .venv/bin/activate  # Linux/Mac")
+        
+except Exception as e:
     AGNO_AVAILABLE = False
-    st.error("Agno não está instalado. Execute: pip install agno")
+    st.error(f"❌ Erro inesperado: {e}")
 
 class AgnoAgentBuilder:
     """
@@ -248,45 +268,26 @@ class AgnoAgentBuilder:
                         ["gemini-2.0-flash-001", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"]
                     )
                 elif model_provider == "OpenRouter":
-                    # Seção especial para OpenRouter com modelos populares
-                    openrouter_category = st.selectbox(
-                        "Categoria:",
-                        ["Populares", "Gratuitos", "OpenAI", "Anthropic", "Google", "Personalizado"]
-                    )
+                    # Nova interface avançada para OpenRouter
+                    from openrouter_filters import OpenRouterFilters
                     
-                    if openrouter_category in st.session_state.openrouter_models:
-                        models = st.session_state.openrouter_models[openrouter_category]
-                        
-                        # Criar opções com indicação de gratuito
-                        model_options = []
-                        model_ids = []
-                        
-                        for model in models:
-                            label = f"{model['name']}"
-                            if model['free']:
-                                label += " 🆓"
-                            model_options.append(label)
-                            model_ids.append(model['id'])
-                        
-                        selected_index = st.selectbox(
-                            "Modelo:",
-                            range(len(model_options)),
-                            format_func=lambda x: model_options[x]
-                        )
-                        
-                        model_id = model_ids[selected_index]
-                        
-                        # Mostrar informações do modelo selecionado
-                        selected_model = models[selected_index]
-                        if selected_model['free']:
-                            st.success("✅ Modelo gratuito selecionado!")
-                        else:
-                            st.warning("💰 Modelo pago - verifique custos em openrouter.ai")
+                    # Inicializar componente de filtros
+                    if 'openrouter_filters' not in st.session_state:
+                        st.session_state.openrouter_filters = OpenRouterFilters()
                     
-                    else:  # Personalizado
+                    # Obter chave da API
+                    api_key = os.getenv("OPENAI_API_KEY")
+                    
+                    # Renderizar interface completa
+                    model_id = st.session_state.openrouter_filters.render_complete_interface(api_key)
+                    
+                    # Fallback para entrada manual se necessário
+                    if model_id is None:
+                        st.markdown("---")
+                        st.markdown("**🔧 Entrada Manual (Opcional)**")
                         model_id = st.text_input(
                             "ID do Modelo OpenRouter:",
-                            "openai/gpt-4o",
+                            "mistralai/mistral-7b-instruct:free",
                             help="Digite o ID completo do modelo (ex: openai/gpt-4o)"
                         )
                         st.info("💡 Encontre mais modelos em: https://openrouter.ai/models")
@@ -1363,6 +1364,326 @@ print(resultado.content)
             st.session_state.ai_assistant = self.create_ai_assistant()
         if 'openrouter_models' not in st.session_state:
             st.session_state.openrouter_models = self.get_openrouter_models()
+        if 'app_logs' not in st.session_state:
+            st.session_state.app_logs = []
+    
+    def add_log(self, message: str, level: str = "INFO"):
+        """Adiciona uma mensagem ao log da aplicação"""
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log_entry = f"[{timestamp}] {level}: {message}"
+        st.session_state.app_logs.append(log_entry)
+        
+        # Manter apenas os últimos 100 logs
+        if len(st.session_state.app_logs) > 100:
+            st.session_state.app_logs = st.session_state.app_logs[-100:]
+    
+    def test_api_connection(self, provider: str, api_key: str) -> bool:
+        """Testa conexão com API do provedor"""
+        try:
+            if provider == "OpenAI/OpenRouter":
+                import requests
+                headers = {"Authorization": f"Bearer {api_key}"}
+                if api_key.startswith("sk-or-"):
+                    # OpenRouter
+                    response = requests.get("https://openrouter.ai/api/v1/models", 
+                                          headers=headers, timeout=5)
+                else:
+                    # OpenAI
+                    response = requests.get("https://api.openai.com/v1/models", 
+                                          headers=headers, timeout=5)
+                return response.status_code == 200
+            
+            elif provider == "Anthropic":
+                import requests
+                headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
+                response = requests.get("https://api.anthropic.com/v1/messages", 
+                                      headers=headers, timeout=5)
+                return response.status_code in [200, 400]  # 400 é esperado sem body
+            
+            elif provider == "Google":
+                import requests
+                response = requests.get(f"https://generativelanguage.googleapis.com/v1/models?key={api_key}", 
+                                      timeout=5)
+                return response.status_code == 200
+            
+            return False
+        except Exception as e:
+            self.add_log(f"Erro ao testar {provider}: {e}", "ERROR")
+            return False
+    
+    def render_settings_tab(self):
+        """Renderiza a aba de configurações"""
+        st.header("⚙️ Configurações")
+        
+        # Sub-abas dentro de Settings
+        settings_tab1, settings_tab2, settings_tab3 = st.tabs(["🔑 APIs", "📊 Logs", "🔧 Sistema"])
+        
+        with settings_tab1:
+            self.render_api_settings()
+        
+        with settings_tab2:
+            self.render_logs_section()
+        
+        with settings_tab3:
+            self.render_system_settings()
+    
+    def render_api_settings(self):
+        """Renderiza configurações de APIs"""
+        st.subheader("🔑 Configuração de APIs")
+        
+        # Carregar configurações atuais do .env
+        current_apis = {
+            "OpenAI/OpenRouter": os.getenv("OPENAI_API_KEY", ""),
+            "Anthropic": os.getenv("ANTHROPIC_API_KEY", ""),
+            "Google": os.getenv("GOOGLE_API_KEY", "")
+        }
+        
+        # Interface para cada API
+        for provider, current_key in current_apis.items():
+            with st.expander(f"🔧 {provider}", expanded=bool(current_key)):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    # Campo para inserir chave
+                    key_input = st.text_input(
+                        f"Chave da API {provider}:",
+                        value=current_key,
+                        type="password",
+                        key=f"api_key_{provider}",
+                        help=self.get_api_help(provider)
+                    )
+                
+                with col2:
+                    # Botão de teste
+                    if st.button(f"🧪 Testar", key=f"test_{provider}"):
+                        if key_input:
+                            with st.spinner(f"Testando {provider}..."):
+                                if self.test_api_connection(provider, key_input):
+                                    st.success(f"✅ {provider} funcionando!")
+                                    self.add_log(f"Teste de API {provider}: SUCESSO")
+                                else:
+                                    st.error(f"❌ {provider} falhou!")
+                                    self.add_log(f"Teste de API {provider}: FALHOU", "ERROR")
+                        else:
+                            st.warning("⚠️ Insira uma chave primeiro")
+                
+                # Salvar configuração
+                if key_input != current_key:
+                    if st.button(f"💾 Salvar {provider}", key=f"save_{provider}"):
+                        self.save_api_key(provider, key_input)
+                        st.success(f"✅ Chave do {provider} salva!")
+                        self.add_log(f"Chave API {provider} atualizada")
+                        st.rerun()
+                
+                # Status atual
+                if current_key:
+                    masked_key = current_key[:8] + "..." + current_key[-4:] if len(current_key) > 12 else "***"
+                    st.info(f"🔑 Chave atual: {masked_key}")
+                else:
+                    st.warning("⚠️ Nenhuma chave configurada")
+        
+        # Instruções
+        st.markdown("---")
+        st.markdown("""
+        ### 📋 Como obter chaves de API:
+        
+        **🔵 OpenAI:**
+        - Acesse: https://platform.openai.com/api-keys
+        - Crie uma conta e gere uma chave
+        - Formato: `sk-proj-...`
+        
+        **🌐 OpenRouter:**
+        - Acesse: https://openrouter.ai/keys
+        - Crie uma conta gratuita
+        - Formato: `sk-or-v1-...`
+        - 💡 Tem modelos gratuitos disponíveis!
+        
+        **🟠 Anthropic:**
+        - Acesse: https://console.anthropic.com/
+        - Crie uma conta e gere uma chave
+        - Formato: `sk-ant-api03-...`
+        
+        **🔴 Google Gemini:**
+        - Acesse: https://makersuite.google.com/app/apikey
+        - Faça login com conta Google
+        - Formato: `AIzaSy...`
+        - 💡 Tem cota gratuita generosa!
+        """)
+    
+    def get_api_help(self, provider: str) -> str:
+        """Retorna texto de ajuda para cada provedor"""
+        help_texts = {
+            "OpenAI/OpenRouter": "Para OpenAI use sk-proj-... Para OpenRouter use sk-or-v1-...",
+            "Anthropic": "Chave da Anthropic no formato sk-ant-api03-...",
+            "Google": "Chave do Google AI no formato AIzaSy..."
+        }
+        return help_texts.get(provider, "")
+    
+    def save_api_key(self, provider: str, api_key: str):
+        """Salva chave de API no arquivo .env"""
+        env_vars = {
+            "OpenAI/OpenRouter": "OPENAI_API_KEY",
+            "Anthropic": "ANTHROPIC_API_KEY", 
+            "Google": "GOOGLE_API_KEY"
+        }
+        
+        env_var = env_vars.get(provider)
+        if env_var:
+            # Atualizar variável de ambiente atual
+            os.environ[env_var] = api_key
+            
+            # Atualizar arquivo .env
+            self.update_env_file(env_var, api_key)
+    
+    def update_env_file(self, key: str, value: str):
+        """Atualiza arquivo .env com nova chave"""
+        env_file = ".env"
+        lines = []
+        key_found = False
+        
+        # Ler arquivo existente
+        if os.path.exists(env_file):
+            with open(env_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+        
+        # Atualizar ou adicionar chave
+        for i, line in enumerate(lines):
+            if line.startswith(f"{key}="):
+                lines[i] = f"{key}={value}\n"
+                key_found = True
+                break
+        
+        if not key_found:
+            lines.append(f"{key}={value}\n")
+        
+        # Escrever arquivo
+        with open(env_file, 'w', encoding='utf-8') as f:
+            f.writelines(lines)
+    
+    def render_logs_section(self):
+        """Renderiza seção de logs"""
+        st.subheader("📊 Logs da Aplicação")
+        
+        col1, col2, col3 = st.columns([1, 1, 2])
+        
+        with col1:
+            if st.button("🔄 Atualizar Logs"):
+                st.rerun()
+        
+        with col2:
+            if st.button("🗑️ Limpar Logs"):
+                st.session_state.app_logs = []
+                st.success("✅ Logs limpos!")
+                st.rerun()
+        
+        with col3:
+            log_level = st.selectbox("Filtrar por nível:", ["TODOS", "INFO", "ERROR", "WARNING"])
+        
+        # Mostrar logs
+        if st.session_state.app_logs:
+            # Filtrar logs se necessário
+            filtered_logs = st.session_state.app_logs
+            if log_level != "TODOS":
+                filtered_logs = [log for log in st.session_state.app_logs if log_level in log]
+            
+            # Mostrar logs em ordem reversa (mais recentes primeiro)
+            st.text_area(
+                "📋 Logs:",
+                value="\n".join(reversed(filtered_logs)),
+                height=400,
+                disabled=True
+            )
+            
+            st.info(f"📊 Total de logs: {len(st.session_state.app_logs)} | Filtrados: {len(filtered_logs)}")
+        else:
+            st.info("📝 Nenhum log disponível ainda")
+        
+        # Adicionar log de teste
+        if st.button("🧪 Adicionar Log de Teste"):
+            self.add_log("Este é um log de teste", "INFO")
+            st.success("✅ Log de teste adicionado!")
+            st.rerun()
+    
+    def render_system_settings(self):
+        """Renderiza configurações do sistema"""
+        st.subheader("🔧 Configurações do Sistema")
+        
+        # Informações do sistema
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**🐍 Ambiente Python:**")
+            st.info(f"Versão: {sys.version}")
+            st.info(f"Executável: {sys.executable}")
+            
+            # Verificar ambiente virtual
+            if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+                st.success("✅ Ambiente virtual ativo")
+            else:
+                st.warning("⚠️ Ambiente virtual não detectado")
+        
+        with col2:
+            st.markdown("**📦 Dependências:**")
+            
+            # Verificar dependências principais
+            deps = {
+                "streamlit": "Interface web",
+                "agno": "Framework principal", 
+                "openai": "Cliente OpenAI",
+                "anthropic": "Cliente Anthropic",
+                "google-generativeai": "Cliente Google"
+            }
+            
+            for dep, desc in deps.items():
+                try:
+                    __import__(dep.replace('-', '_'))
+                    st.success(f"✅ {dep}")
+                except ImportError:
+                    st.error(f"❌ {dep}")
+        
+        # Configurações avançadas
+        st.markdown("---")
+        st.markdown("**⚙️ Configurações Avançadas:**")
+        
+        # Protobuf
+        current_protobuf = os.getenv("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "")
+        protobuf_setting = st.selectbox(
+            "Implementação Protobuf:",
+            ["python", "cpp", "upb"],
+            index=0 if current_protobuf == "python" else 1
+        )
+        
+        if protobuf_setting != current_protobuf:
+            if st.button("💾 Salvar Configuração Protobuf"):
+                os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = protobuf_setting
+                self.update_env_file("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", protobuf_setting)
+                st.success("✅ Configuração salva! Reinicie a aplicação.")
+                self.add_log(f"Protobuf configurado para: {protobuf_setting}")
+        
+        # Cache
+        if st.button("🗑️ Limpar Cache"):
+            # Limpar cache do Streamlit
+            st.cache_data.clear()
+            if hasattr(st, 'cache_resource'):
+                st.cache_resource.clear()
+            
+            # Limpar cache do OpenRouter
+            try:
+                from openrouter_api import ModelCache
+                cache = ModelCache()
+                cache.clear_cache()
+            except:
+                pass
+            
+            st.success("✅ Cache limpo!")
+            self.add_log("Cache da aplicação limpo")
+        
+        # Reiniciar aplicação
+        if st.button("🔄 Reiniciar Aplicação"):
+            st.success("✅ Reiniciando...")
+            self.add_log("Aplicação reiniciada pelo usuário")
+            st.rerun()
     
     def run(self):
         """Executa a aplicação principal"""
@@ -1375,32 +1696,39 @@ print(resultado.content)
         # Renderizar cabeçalho
         self.render_header(current_level)
         
-        # Renderizar builder baseado no nível
-        if current_level == 1:
-            self.render_level_1_builder()
-        elif current_level == 2:
-            self.render_level_2_builder()
-        elif current_level == 3:
-            self.render_level_3_builder()
-        elif current_level == 4:
-            self.render_level_4_builder()
-        elif current_level == 5:
-            self.render_level_5_builder()
+        # Criar abas principais
+        tab1, tab2 = st.tabs(["🤖 Agent Builder", "⚙️ Settings"])
         
-        # Rodapé
-        st.markdown("---")
-        st.markdown("""
-        ### 🚀 Próximos Passos
-        1. **Configure** seu agente usando os controles acima
-        2. **Gere o código** clicando no botão correspondente
-        3. **Teste** o código em seu ambiente local
-        4. **Monitore** o desempenho em https://app.agno.com
+        with tab1:
+            # Renderizar builder baseado no nível
+            if current_level == 1:
+                self.render_level_1_builder()
+            elif current_level == 2:
+                self.render_level_2_builder()
+            elif current_level == 3:
+                self.render_level_3_builder()
+            elif current_level == 4:
+                self.render_level_4_builder()
+            elif current_level == 5:
+                self.render_level_5_builder()
+            
+            # Rodapé
+            st.markdown("---")
+            st.markdown("""
+            ### 🚀 Próximos Passos
+            1. **Configure** seu agente usando os controles acima
+            2. **Gere o código** clicando no botão correspondente
+            3. **Teste** o código em seu ambiente local
+            4. **Monitore** o desempenho em https://app.agno.com
+            
+            ### 📚 Recursos Úteis
+            - [Documentação Oficial](https://docs.agno.com)
+            - [Exemplos no GitHub](https://github.com/agno-agi/agno/tree/main/cookbook)
+            - [Comunidade Discord](https://discord.gg/4MtYHHrgA8)
+            """)
         
-        ### 📚 Recursos Úteis
-        - [Documentação Oficial](https://docs.agno.com)
-        - [Exemplos no GitHub](https://github.com/agno-agi/agno/tree/main/cookbook)
-        - [Comunidade Discord](https://discord.gg/4MtYHHrgA8)
-        """)
+        with tab2:
+            self.render_settings_tab()
 
 def main():
     """Função principal da aplicação"""
