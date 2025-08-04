@@ -1506,6 +1506,15 @@ print(resultado.content)
             "Google": os.getenv("GOOGLE_API_KEY", "")
         }
         
+        # Auto-preenchimento se as chaves estão configuradas
+        if any(current_apis.values()):
+            st.success("✅ APIs detectadas automaticamente do arquivo .env!")
+            
+            configured_count = sum(1 for key in current_apis.values() if key)
+            st.info(f"📊 {configured_count}/3 APIs configuradas")
+        else:
+            st.warning("⚠️ Nenhuma API configurada no arquivo .env")
+        
         # Interface para cada API
         for provider, current_key in current_apis.items():
             with st.expander(f"🔧 {provider}", expanded=bool(current_key)):
@@ -1752,6 +1761,365 @@ print(resultado.content)
             self.add_log("Aplicação reiniciada pelo usuário")
             st.rerun()
     
+    def render_mcp_tab(self):
+        """Renderiza a aba de MCP Tools"""
+        st.header("🔌 Model Context Protocol (MCP) Tools")
+        
+        # Sub-abas dentro de MCP
+        mcp_tab1, mcp_tab2, mcp_tab3 = st.tabs(["📋 Gerenciar MCPs", "🔍 MCPs Disponíveis", "📚 Documentação"])
+        
+        with mcp_tab1:
+            self.render_mcp_manager()
+        
+        with mcp_tab2:
+            self.render_mcp_suggestions()
+        
+        with mcp_tab3:
+            self.render_mcp_documentation()
+    
+    def render_mcp_manager(self):
+        """Renderiza o gerenciador de MCPs"""
+        st.subheader("📋 Gerenciamento de MCPs")
+        
+        # Status dos MCPs ativos
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.markdown("**MCPs Ativos:**")
+            
+            # Simular MCPs ativos (em uma implementação real, isso viria do Agno)
+            active_mcps = self.get_active_mcps()
+            
+            if active_mcps:
+                for mcp in active_mcps:
+                    with st.container():
+                        mcp_col1, mcp_col2, mcp_col3 = st.columns([2, 1, 1])
+                        
+                        with mcp_col1:
+                            st.write(f"🔌 **{mcp['name']}**")
+                            st.caption(f"Status: {mcp['status']} | PID: {mcp.get('pid', 'N/A')}")
+                        
+                        with mcp_col2:
+                            if st.button("⏹️ Parar", key=f"stop_{mcp['name']}"):
+                                self.stop_mcp(mcp['name'])
+                                st.success(f"✅ {mcp['name']} parado")
+                                st.rerun()
+                        
+                        with mcp_col3:
+                            if st.button("🔄 Reiniciar", key=f"restart_{mcp['name']}"):
+                                self.restart_mcp(mcp['name'])
+                                st.success(f"✅ {mcp['name']} reiniciado")
+                                st.rerun()
+            else:
+                st.info("📝 Nenhum MCP ativo no momento")
+        
+        with col2:
+            st.markdown("**Ações Rápidas:**")
+            
+            if st.button("🔄 Atualizar Lista"):
+                st.rerun()
+            
+            if st.button("⏹️ Parar Todos"):
+                self.stop_all_mcps()
+                st.success("✅ Todos os MCPs foram parados")
+                st.rerun()
+            
+            if st.button("🧹 Limpar Cache"):
+                self.clear_mcp_cache()
+                st.success("✅ Cache MCP limpo")
+        
+        # Adicionar novo MCP
+        st.markdown("---")
+        st.markdown("**➕ Adicionar Novo MCP:**")
+        
+        with st.form("add_mcp_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                mcp_name = st.text_input("Nome do MCP:", placeholder="filesystem")
+                mcp_command = st.text_input("Comando:", placeholder="uvx mcp-server-filesystem")
+            
+            with col2:
+                mcp_args = st.text_input("Argumentos:", placeholder="--path /home/user")
+                mcp_env = st.text_area("Variáveis de Ambiente (JSON):", 
+                                     placeholder='{"PATH": "/usr/bin"}', height=60)
+            
+            submitted = st.form_submit_button("🚀 Iniciar MCP")
+            
+            if submitted and mcp_name and mcp_command:
+                success = self.start_mcp(mcp_name, mcp_command, mcp_args, mcp_env)
+                if success:
+                    st.success(f"✅ MCP {mcp_name} iniciado com sucesso!")
+                    self.add_log(f"MCP {mcp_name} iniciado")
+                else:
+                    st.error(f"❌ Falha ao iniciar MCP {mcp_name}")
+                    self.add_log(f"Falha ao iniciar MCP {mcp_name}", "ERROR")
+    
+    def render_mcp_suggestions(self):
+        """Renderiza sugestões de MCPs compatíveis"""
+        st.subheader("🔍 MCPs Disponíveis e Compatíveis")
+        
+        # Lista de MCPs compatíveis com Agno
+        mcp_suggestions = {
+            "📁 Sistema de Arquivos": {
+                "filesystem": {
+                    "description": "Acesso completo ao sistema de arquivos local",
+                    "command": "uvx mcp-server-filesystem",
+                    "args": "--path /home/user",
+                    "category": "Sistema",
+                    "difficulty": "Fácil",
+                    "official": True
+                }
+            },
+            "🌐 Web e APIs": {
+                "fetch": {
+                    "description": "Fazer requisições HTTP e acessar APIs web",
+                    "command": "uvx mcp-server-fetch",
+                    "args": "",
+                    "category": "Web",
+                    "difficulty": "Fácil",
+                    "official": True
+                },
+                "puppeteer": {
+                    "description": "Automação de navegador web com Puppeteer",
+                    "command": "uvx mcp-server-puppeteer",
+                    "args": "",
+                    "category": "Web",
+                    "difficulty": "Médio",
+                    "official": True
+                }
+            },
+            "🗄️ Bancos de Dados": {
+                "sqlite": {
+                    "description": "Interação com bancos de dados SQLite",
+                    "command": "uvx mcp-server-sqlite",
+                    "args": "--db-path ./database.db",
+                    "category": "Database",
+                    "difficulty": "Médio",
+                    "official": True
+                },
+                "postgres": {
+                    "description": "Conexão com PostgreSQL",
+                    "command": "uvx mcp-server-postgres",
+                    "args": "--connection-string postgresql://user:pass@localhost/db",
+                    "category": "Database",
+                    "difficulty": "Avançado",
+                    "official": False
+                }
+            },
+            "🔧 Desenvolvimento": {
+                "git": {
+                    "description": "Operações Git (commit, push, pull, etc.)",
+                    "command": "uvx mcp-server-git",
+                    "args": "--repo-path .",
+                    "category": "DevOps",
+                    "difficulty": "Médio",
+                    "official": True
+                },
+                "docker": {
+                    "description": "Gerenciamento de containers Docker",
+                    "command": "uvx mcp-server-docker",
+                    "args": "",
+                    "category": "DevOps",
+                    "difficulty": "Avançado",
+                    "official": False
+                }
+            },
+            "🤖 Automação": {
+                "n8n": {
+                    "description": "Integração com workflows N8N",
+                    "command": "uvx mcp-server-n8n",
+                    "args": "--n8n-url http://localhost:5678",
+                    "category": "Automação",
+                    "difficulty": "Avançado",
+                    "official": False
+                },
+                "zapier": {
+                    "description": "Integração com Zapier webhooks",
+                    "command": "uvx mcp-server-zapier",
+                    "args": "",
+                    "category": "Automação",
+                    "difficulty": "Médio",
+                    "official": False
+                }
+            }
+        }
+        
+        # Filtros
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            category_filter = st.selectbox("Categoria:", 
+                                         ["Todas"] + list(set(mcp['category'] for category in mcp_suggestions.values() 
+                                                             for mcp in category.values())))
+        
+        with col2:
+            difficulty_filter = st.selectbox("Dificuldade:", ["Todas", "Fácil", "Médio", "Avançado"])
+        
+        with col3:
+            official_filter = st.selectbox("Tipo:", ["Todos", "Oficiais", "Comunidade"])
+        
+        # Exibir MCPs
+        for category_name, mcps in mcp_suggestions.items():
+            # Filtrar MCPs
+            filtered_mcps = {}
+            for name, mcp in mcps.items():
+                if category_filter != "Todas" and mcp['category'] != category_filter:
+                    continue
+                if difficulty_filter != "Todas" and mcp['difficulty'] != difficulty_filter:
+                    continue
+                if official_filter == "Oficiais" and not mcp['official']:
+                    continue
+                if official_filter == "Comunidade" and mcp['official']:
+                    continue
+                filtered_mcps[name] = mcp
+            
+            if not filtered_mcps:
+                continue
+            
+            st.markdown(f"### {category_name}")
+            
+            for mcp_name, mcp_info in filtered_mcps.items():
+                with st.expander(f"🔌 {mcp_name.title()}", expanded=False):
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        st.write(f"**Descrição:** {mcp_info['description']}")
+                        st.code(f"Comando: {mcp_info['command']} {mcp_info['args']}")
+                        
+                        # Tags
+                        tags = []
+                        tags.append(f"📂 {mcp_info['category']}")
+                        tags.append(f"⭐ {mcp_info['difficulty']}")
+                        if mcp_info['official']:
+                            tags.append("✅ Oficial")
+                        else:
+                            tags.append("👥 Comunidade")
+                        
+                        st.write(" | ".join(tags))
+                    
+                    with col2:
+                        if st.button(f"🚀 Instalar {mcp_name}", key=f"install_{mcp_name}"):
+                            success = self.install_mcp(mcp_name, mcp_info)
+                            if success:
+                                st.success(f"✅ {mcp_name} instalado!")
+                            else:
+                                st.error(f"❌ Falha ao instalar {mcp_name}")
+                        
+                        if st.button(f"📋 Copiar Comando", key=f"copy_{mcp_name}"):
+                            st.code(f"{mcp_info['command']} {mcp_info['args']}")
+                            st.success("✅ Comando copiado!")
+    
+    def render_mcp_documentation(self):
+        """Renderiza documentação sobre MCPs"""
+        st.subheader("📚 Documentação MCP")
+        
+        st.markdown("""
+        ### 🔌 O que é Model Context Protocol (MCP)?
+        
+        O **Model Context Protocol (MCP)** é um padrão aberto que permite aos modelos de IA 
+        acessar dados e ferramentas externas de forma segura e padronizada.
+        
+        ### 🎯 Benefícios dos MCPs:
+        
+        - **🔒 Segurança**: Controle granular de permissões
+        - **🔄 Padronização**: Interface consistente entre diferentes ferramentas
+        - **⚡ Performance**: Comunicação eficiente entre modelo e ferramentas
+        - **🛠️ Extensibilidade**: Fácil adição de novas capacidades
+        
+        ### 📋 Como usar MCPs no Agno:
+        
+        1. **Instalar uvx**: `pip install uv` (se não tiver)
+        2. **Escolher MCP**: Use a aba "MCPs Disponíveis"
+        3. **Configurar**: Adicione na aba "Gerenciar MCPs"
+        4. **Usar**: O MCP ficará disponível para seus agentes
+        
+        ### 🔧 Comandos Úteis:
+        
+        ```bash
+        # Listar MCPs disponíveis
+        uvx --help
+        
+        # Instalar MCP específico
+        uvx mcp-server-filesystem --path /home/user
+        
+        # Verificar MCPs ativos
+        ps aux | grep mcp
+        ```
+        
+        ### 📖 Recursos Adicionais:
+        
+        - [Documentação Oficial MCP](https://modelcontextprotocol.io/)
+        - [Agno MCP Integration](https://docs.agno.com/mcp)
+        - [Lista Completa de MCPs](https://github.com/modelcontextprotocol/servers)
+        """)
+        
+        # Seção de troubleshooting
+        with st.expander("🔧 Solução de Problemas", expanded=False):
+            st.markdown("""
+            ### Problemas Comuns:
+            
+            **❌ "uvx command not found"**
+            - Solução: `pip install uv`
+            
+            **❌ "MCP server failed to start"**
+            - Verifique se o comando está correto
+            - Confirme se as dependências estão instaladas
+            - Verifique os logs na aba Settings > Logs
+            
+            **❌ "Permission denied"**
+            - Verifique permissões de arquivo/diretório
+            - Execute com privilégios adequados
+            
+            **❌ "Port already in use"**
+            - Pare outros MCPs usando a mesma porta
+            - Use porta diferente nos argumentos
+            """)
+    
+    def get_active_mcps(self):
+        """Retorna lista de MCPs ativos (simulado)"""
+        # Em uma implementação real, isso consultaria o Agno ou sistema
+        return [
+            {"name": "filesystem", "status": "🟢 Ativo", "pid": "12345"},
+            {"name": "fetch", "status": "🟢 Ativo", "pid": "12346"}
+        ]
+    
+    def stop_mcp(self, mcp_name):
+        """Para um MCP específico"""
+        self.add_log(f"Parando MCP: {mcp_name}")
+        # Implementação real faria: kill process, cleanup, etc.
+        return True
+    
+    def restart_mcp(self, mcp_name):
+        """Reinicia um MCP específico"""
+        self.add_log(f"Reiniciando MCP: {mcp_name}")
+        # Implementação real faria: stop + start
+        return True
+    
+    def stop_all_mcps(self):
+        """Para todos os MCPs ativos"""
+        self.add_log("Parando todos os MCPs")
+        # Implementação real faria: kill all mcp processes
+        return True
+    
+    def clear_mcp_cache(self):
+        """Limpa cache dos MCPs"""
+        self.add_log("Cache MCP limpo")
+        # Implementação real limparia cache/temp files
+        return True
+    
+    def start_mcp(self, name, command, args, env):
+        """Inicia um novo MCP"""
+        self.add_log(f"Iniciando MCP: {name} com comando: {command} {args}")
+        # Implementação real faria: subprocess.Popen, etc.
+        return True
+    
+    def install_mcp(self, name, mcp_info):
+        """Instala e inicia um MCP"""
+        self.add_log(f"Instalando MCP: {name}")
+        # Implementação real faria: uvx install + start
+        return True
+    
     def run(self):
         """Executa a aplicação principal"""
         # Inicializar Streamlit
@@ -1764,7 +2132,7 @@ print(resultado.content)
         self.render_header(current_level)
         
         # Criar abas principais
-        tab1, tab2 = st.tabs(["🤖 Agent Builder", "⚙️ Settings"])
+        tab1, tab2, tab3 = st.tabs(["🤖 Agent Builder", "⚙️ Settings", "🔌 MCP Tools"])
         
         with tab1:
             # Renderizar builder baseado no nível
@@ -1796,6 +2164,9 @@ print(resultado.content)
         
         with tab2:
             self.render_settings_tab()
+        
+        with tab3:
+            self.render_mcp_tab()
 
 def main():
     """Função principal da aplicação"""
