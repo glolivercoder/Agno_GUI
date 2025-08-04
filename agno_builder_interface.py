@@ -392,15 +392,47 @@ class AgnoAgentBuilder:
             tools_categories = {k: v for k, v in tools_categories.items() if v}
             
             selected_tools = []
-            for category, tools in tools_categories.items():
-                st.write(f"**{category}**")
-                for tool_name, tool_info in tools.items():
-                    if st.checkbox(tool_name, key=f"tool_{tool_name}"):
-                        selected_tools.append({
-                            "name": tool_name,
-                            "class": tool_info["class"],
-                            "import": tool_info["import"]
-                        })
+            
+            if tools_categories:
+                for category, tools in tools_categories.items():
+                    st.write(f"**{category}**")
+                    for tool_name, tool_info in tools.items():
+                        if st.checkbox(tool_name, key=f"tool_{tool_name}"):
+                            selected_tools.append({
+                                "name": tool_name,
+                                "class": tool_info["class"],
+                                "import": tool_info["import"]
+                            })
+            else:
+                st.warning("⚠️ Nenhuma ferramenta disponível")
+                st.info("💡 Instale as dependências: pip install yfinance duckduckgo-search")
+                
+                # Mostrar status das ferramentas
+                st.markdown("**Status das Ferramentas:**")
+                tool_status = {
+                    "DuckDuckGo": 'duckduckgo' in available_tools,
+                    "Calculator": 'calculator' in available_tools,
+                    "YFinance": 'yfinance' in available_tools
+                }
+                
+                for tool, status in tool_status.items():
+                    icon = "✅" if status else "❌"
+                    st.write(f"{icon} {tool}")
+                
+                # Permitir seleção manual mesmo sem importação
+                st.markdown("**Seleção Manual:**")
+                manual_tools = st.multiselect(
+                    "Ferramentas (manual):",
+                    ["DuckDuckGo", "Calculator", "YFinance", "Pandas", "Email"],
+                    help="Selecione ferramentas mesmo se não estiverem importadas"
+                )
+                
+                for tool in manual_tools:
+                    selected_tools.append({
+                        "name": tool,
+                        "class": f"{tool}Tools",
+                        "import": f"agno.tools.{tool.lower()}"
+                    })
         
         # Salvar configuração no estado
         st.session_state.agent_configs['level_1'] = {
@@ -620,11 +652,7 @@ class AgnoAgentBuilder:
             team_mode = st.selectbox(
                 "Modo de Operação:",
                 ["collaborate", "coordinate", "route"],
-                help={
-                    "collaborate": "Todos os agentes trabalham juntos na mesma tarefa",
-                    "coordinate": "Agentes são coordenados automaticamente pelo sistema",
-                    "route": "Tarefas são direcionadas para agentes específicos"
-                }
+                help="collaborate: Todos trabalham juntos | coordinate: Coordenação automática | route: Direcionamento específico"
             )
             
             # Configurações do time
@@ -675,19 +703,35 @@ class AgnoAgentBuilder:
                         key=f"agent_model_{i}"
                     )
                     
-                    # Ferramentas baseadas na especialização
-                    if specialization == "Pesquisa":
-                        default_tools = ["DuckDuckGo", "Google Search"]
-                    elif specialization == "Análise":
-                        default_tools = ["Calculator", "Pandas"]
-                    elif specialization == "Financeiro":
-                        default_tools = ["YFinance", "Calculator"]
-                    else:
+                    # Ferramentas disponíveis baseadas no que foi importado
+                    available_tools = self.get_available_tools()
+                    tool_options = []
+                    
+                    if 'duckduckgo' in available_tools:
+                        tool_options.append("DuckDuckGo")
+                    if 'calculator' in available_tools:
+                        tool_options.append("Calculator")
+                    if 'yfinance' in available_tools:
+                        tool_options.append("YFinance")
+                    
+                    # Adicionar outras ferramentas comuns
+                    tool_options.extend(["Pandas", "Email"])
+                    
+                    # Definir ferramentas padrão baseadas na especialização
+                    if specialization == "Pesquisa" and "DuckDuckGo" in tool_options:
+                        default_tools = ["DuckDuckGo"]
+                    elif specialization == "Análise" and "Calculator" in tool_options:
                         default_tools = ["Calculator"]
+                    elif specialization == "Financeiro" and "YFinance" in tool_options:
+                        default_tools = ["YFinance", "Calculator"] if "Calculator" in tool_options else ["YFinance"]
+                    elif "Calculator" in tool_options:
+                        default_tools = ["Calculator"]
+                    else:
+                        default_tools = []
                     
                     agent_tools = st.multiselect(
                         f"Ferramentas:",
-                        ["DuckDuckGo", "Calculator", "YFinance", "Pandas", "Email"],
+                        tool_options,
                         default=default_tools,
                         key=f"agent_tools_{i}"
                     )
