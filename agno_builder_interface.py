@@ -83,23 +83,32 @@ class AgnoAgentBuilder:
         """Cria assistente IA especializado em Agno"""
         if not AGNO_AVAILABLE:
             return None
+        
+        # Verificar se há chave de API disponível
+        import os
+        if not (os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+            return None
             
-        return Agent(
-            name="Agno Builder Assistant",
-            model=OpenAIChat(id="gpt-4"),
-            tools=[tool() for tool in [AVAILABLE_TOOLS.get('duckduckgo'), AVAILABLE_TOOLS.get('calculator')] if tool],
-            instructions=[
-                "Você é um especialista em Agno Framework.",
-                "Ajude usuários a criar agentes otimizados para cada nível.",
-                "Sugira ferramentas, configurações e melhores práticas.",
-                "Explique conceitos técnicos de forma clara.",
-                "Sempre considere performance e escalabilidade.",
-                "Forneça exemplos práticos e funcionais.",
-                "Conheça todos os provedores: OpenAI, Anthropic, Google Gemini, OpenRouter.",
-                "Para OpenRouter, sugira modelos gratuitos quando apropriado."
-            ],
-            markdown=True
-        )
+        try:
+            return Agent(
+                name="Agno Builder Assistant",
+                model=OpenAIChat(id="gpt-4"),
+                tools=[tool() for tool in [AVAILABLE_TOOLS.get('duckduckgo'), AVAILABLE_TOOLS.get('calculator')] if tool],
+                instructions=[
+                    "Você é um especialista em Agno Framework.",
+                    "Ajude usuários a criar agentes otimizados para cada nível.",
+                    "Sugira ferramentas, configurações e melhores práticas.",
+                    "Explique conceitos técnicos de forma clara.",
+                    "Sempre considere performance e escalabilidade.",
+                    "Forneça exemplos práticos e funcionais.",
+                    "Conheça todos os provedores: OpenAI, Anthropic, Google Gemini, OpenRouter.",
+                    "Para OpenRouter, sugira modelos gratuitos quando apropriado."
+                ],
+                markdown=True
+            )
+        except Exception as e:
+            print(f"Erro ao criar assistente IA: {e}")
+            return None
     
     def get_openrouter_models(self):
         """Obtém lista de modelos OpenRouter populares"""
@@ -211,8 +220,26 @@ class AgnoAgentBuilder:
         if st.sidebar.button("💡 Obter Sugestões IA"):
             self.get_ai_suggestions(selected_level)
         
-        if st.sidebar.button("📋 Carregar Template"):
-            self.load_template(selected_level)
+        # Templates disponíveis
+        st.sidebar.markdown("### 📋 Templates Disponíveis")
+        
+        template_options = {
+            1: [
+                ("🔍 Pesquisador", "research"),
+                ("💰 Analista Financeiro", "finance"),
+                ("🐍 Programador", "coding"),
+                ("📚 Educador", "education"),
+                ("💼 Vendas", "sales")
+            ]
+        }
+        
+        if selected_level in template_options:
+            for template_name, template_key in template_options[selected_level]:
+                if st.sidebar.button(template_name, key=f"template_{template_key}"):
+                    self.load_specific_template(selected_level, template_key)
+        else:
+            if st.sidebar.button("📋 Carregar Template Padrão"):
+                self.load_template(selected_level)
         
         if st.sidebar.button("💾 Salvar Configuração"):
             self.save_configuration()
@@ -953,6 +980,12 @@ class AgnoAgentBuilder:
         Seja específico e prático nas sugestões.
         """
         
+        # Verificar se o assistente IA está disponível
+        if not hasattr(st.session_state, 'ai_assistant') or st.session_state.ai_assistant is None:
+            st.warning("🤖 Assistente IA não disponível. Configure uma chave de API (OpenAI, Anthropic ou Google) para usar esta funcionalidade.")
+            st.info("💡 Vá para a aba Settings para configurar suas chaves de API.")
+            return
+        
         with st.spinner("🤖 Obtendo sugestões da IA..."):
             try:
                 suggestion = st.session_state.ai_assistant.run(prompt)
@@ -961,20 +994,43 @@ class AgnoAgentBuilder:
                 st.markdown(suggestion.content)
             except Exception as e:
                 st.error(f"Erro ao obter sugestões: {e}")
+                st.info("💡 Verifique se suas chaves de API estão configuradas corretamente.")
     
     def load_template(self, level: int):
         """Carrega template pré-configurado para o nível"""
+        # Detectar provedor preferido baseado nas chaves de API disponíveis
+        import os
+        preferred_provider = "OpenRouter"  # Padrão para OpenRouter
+        preferred_model = "mistralai/mistral-7b-instruct:free"  # Modelo gratuito
+        
+        # Verificar chaves disponíveis e ajustar provedor
+        if os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY"):
+            preferred_provider = "OpenRouter"
+            preferred_model = "mistralai/mistral-7b-instruct:free"
+        elif os.getenv("GOOGLE_API_KEY"):
+            preferred_provider = "Google Gemini"
+            preferred_model = "gemini-2.0-flash-001"
+        elif os.getenv("ANTHROPIC_API_KEY"):
+            preferred_provider = "Anthropic"
+            preferred_model = "claude-3-haiku"
+        elif os.getenv("OPENAI_API_KEY"):
+            preferred_provider = "OpenAI"
+            preferred_model = "gpt-3.5-turbo"
+        
         templates = {
             1: {
                 "name": "Assistente de Pesquisa",
                 "role": "Pesquisador especializado",
-                "model_provider": "OpenAI",
-                "model_id": "gpt-4",
+                "model_provider": preferred_provider,
+                "model_id": preferred_model,
                 "instructions": "Você é um pesquisador especializado.\nSempre cite suas fontes.\nUse múltiplas ferramentas para validar informações.",
                 "tools": [
                     {"name": "DuckDuckGo", "class": "DuckDuckGoTools", "import": "agno.tools.duckduckgo"},
                     {"name": "Calculator", "class": "CalculatorTools", "import": "agno.tools.calculator"}
-                ]
+                ],
+                "show_tool_calls": True,
+                "markdown": True,
+                "stream": True
             },
             2: {
                 "knowledge_type": "Documentos de Texto",
@@ -1015,7 +1071,112 @@ class AgnoAgentBuilder:
         if level in templates:
             st.session_state.agent_configs[f'level_{level}'] = templates[level]
             st.success(f"✅ Template do Nível {level} carregado!")
-            st.experimental_rerun()
+            st.rerun()
+    
+    def load_specific_template(self, level: int, template_key: str):
+        """Carrega template específico baseado na chave"""
+        import os
+        
+        # Detectar provedor preferido
+        preferred_provider = "OpenRouter"
+        preferred_model = "mistralai/mistral-7b-instruct:free"
+        
+        if os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY"):
+            preferred_provider = "OpenRouter"
+            preferred_model = "mistralai/mistral-7b-instruct:free"
+        elif os.getenv("GOOGLE_API_KEY"):
+            preferred_provider = "Google Gemini"
+            preferred_model = "gemini-2.0-flash-001"
+        elif os.getenv("ANTHROPIC_API_KEY"):
+            preferred_provider = "Anthropic"
+            preferred_model = "claude-3-haiku"
+        elif os.getenv("OPENAI_API_KEY"):
+            preferred_provider = "OpenAI"
+            preferred_model = "gpt-3.5-turbo"
+        
+        # Templates específicos para nível 1
+        specific_templates = {
+            "research": {
+                "name": "Assistente de Pesquisa",
+                "role": "Pesquisador especializado",
+                "model_provider": preferred_provider,
+                "model_id": preferred_model,
+                "instructions": "Você é um pesquisador especializado.\nSempre cite suas fontes.\nUse múltiplas ferramentas para validar informações.\nSeja preciso e objetivo.",
+                "tools": [
+                    {"name": "DuckDuckGo", "class": "DuckDuckGoTools", "import": "agno.tools.duckduckgo"},
+                    {"name": "Calculator", "class": "CalculatorTools", "import": "agno.tools.calculator"}
+                ],
+                "show_tool_calls": True,
+                "markdown": True,
+                "stream": True
+            },
+            "finance": {
+                "name": "Analista Financeiro",
+                "role": "Especialista em análise financeira",
+                "model_provider": preferred_provider,
+                "model_id": preferred_model,
+                "instructions": "Você é um analista financeiro experiente.\nUse dados atuais do mercado.\nForneça análises detalhadas e recomendações.\nSempre inclua disclaimers sobre riscos.",
+                "tools": [
+                    {"name": "YFinance", "class": "YFinanceTools", "import": "agno.tools.yfinance"},
+                    {"name": "Calculator", "class": "CalculatorTools", "import": "agno.tools.calculator"},
+                    {"name": "DuckDuckGo", "class": "DuckDuckGoTools", "import": "agno.tools.duckduckgo"}
+                ],
+                "show_tool_calls": True,
+                "markdown": True,
+                "stream": True
+            },
+            "coding": {
+                "name": "Assistente de Programação",
+                "role": "Desenvolvedor especializado",
+                "model_provider": preferred_provider,
+                "model_id": preferred_model,
+                "instructions": "Você é um desenvolvedor experiente.\nEscreva código limpo e bem documentado.\nExplique suas soluções passo a passo.\nSiga as melhores práticas de programação.",
+                "tools": [
+                    {"name": "Calculator", "class": "CalculatorTools", "import": "agno.tools.calculator"},
+                    {"name": "DuckDuckGo", "class": "DuckDuckGoTools", "import": "agno.tools.duckduckgo"}
+                ],
+                "show_tool_calls": True,
+                "markdown": True,
+                "stream": True
+            },
+            "education": {
+                "name": "Assistente Educacional",
+                "role": "Professor virtual",
+                "model_provider": preferred_provider,
+                "model_id": preferred_model,
+                "instructions": "Você é um professor paciente e didático.\nAdapte explicações ao nível do aluno.\nUse exemplos práticos e exercícios.\nSempre verifique se o aluno entendeu.",
+                "tools": [
+                    {"name": "Calculator", "class": "CalculatorTools", "import": "agno.tools.calculator"},
+                    {"name": "DuckDuckGo", "class": "DuckDuckGoTools", "import": "agno.tools.duckduckgo"}
+                ],
+                "show_tool_calls": True,
+                "markdown": True,
+                "stream": True
+            },
+            "sales": {
+                "name": "Assistente de Vendas",
+                "role": "Especialista em vendas",
+                "model_provider": preferred_provider,
+                "model_id": preferred_model,
+                "instructions": "Você é um vendedor experiente e ético.\nFoque na satisfação do cliente.\nSeja persuasivo mas honesto.\nEntenda as necessidades antes de vender.",
+                "tools": [
+                    {"name": "Calculator", "class": "CalculatorTools", "import": "agno.tools.calculator"},
+                    {"name": "DuckDuckGo", "class": "DuckDuckGoTools", "import": "agno.tools.duckduckgo"}
+                ],
+                "show_tool_calls": True,
+                "markdown": True,
+                "stream": True
+            }
+        }
+        
+        if template_key in specific_templates:
+            st.session_state.agent_configs[f'level_{level}'] = specific_templates[template_key]
+            template_name = specific_templates[template_key]["name"]
+            st.success(f"✅ Template '{template_name}' carregado com {preferred_provider}!")
+            st.info(f"🤖 Usando modelo: {preferred_model}")
+            st.rerun()
+        else:
+            st.error(f"❌ Template '{template_key}' não encontrado")
     
     def save_configuration(self):
         """Salva configuração atual em arquivo"""
@@ -1420,8 +1581,11 @@ print(resultado.content)
             st.session_state.current_level = 1
         if 'agent_configs' not in st.session_state:
             st.session_state.agent_configs = {}
-        if 'ai_assistant' not in st.session_state and AGNO_AVAILABLE:
-            st.session_state.ai_assistant = self.create_ai_assistant()
+        if 'ai_assistant' not in st.session_state:
+            if AGNO_AVAILABLE:
+                st.session_state.ai_assistant = self.create_ai_assistant()
+            else:
+                st.session_state.ai_assistant = None
         if 'openrouter_models' not in st.session_state:
             st.session_state.openrouter_models = self.get_openrouter_models()
         if 'app_logs' not in st.session_state:
